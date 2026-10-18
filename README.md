@@ -641,16 +641,16 @@ Ideas only; none of these are implemented yet.
 
 ## 📄 License
 
-Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for the full text and [`NOTICE`](NOTICE) for attribution.
+Licensed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for the full license terms and [`NOTICE`](NOTICE) for applicable attribution notices.
 
-Copyright © 2026 [Kumar-Devansh](https://github.com/Kumar-Devansh). Based on the original work by [Abhishek Veeramalla](https://github.com/iam-veeramalla/terraform-drift-detector).
+Copyright © 2026 [Kumar Devansh](https://github.com/Kumar-Devansh).
 
 ---
 
 <div align="center">
 
-**[Repository](https://github.com/iam-veeramalla/terraform-drift-detector)** · **[Issues](https://github.com/iam-veeramalla/terraform-drift-detector/issues)** · **[Pull Requests](https://github.com/iam-veeramalla/terraform-drift-detector/pulls)**
+**[Repository](https://github.com/Kumar-Devansh)** · **[Issues](https://github.com/Kumar-Devansh/terraform-drift-detector/issues)** · **[Pull Requests](https://github.com/Kumar-Devansh/terraform-drift-detector/pulls)**
 
-Maintained by [Kumar-Devansh](https://github.com/Kumar-Devansh) · Original project by [Abhishek Veeramalla](https://github.com/iam-veeramalla/terraform-drift-detector), built with the Cursor agent.
+Maintained by [Kumar Devansh](https://github.com/Kumar-Devansh)
 
 </div>

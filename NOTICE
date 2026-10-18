@@ -1,7 +1,15 @@
-driftctl - Terraform drift detection
-Copyright 2026 Kumar-Devansh (https://github.com/Kumar-Devansh)
+```text
+driftctl - Terraform Drift Detection
+Copyright 2026 Kumar Devansh
+GitHub: https://github.com/Kumar-Devansh
 
-This product includes software originally developed by
-Abhishek Veeramalla (https://github.com/iam-veeramalla)
-in the project https://github.com/iam-veeramalla/terraform-drift-detector,
-licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed
+on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS
+OF ANY KIND, either express or implied.
+```
