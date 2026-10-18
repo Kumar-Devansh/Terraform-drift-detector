@@ -1,0 +1,39 @@
+package providers
+
+import (
+	"context"
+
+	"github.com/driftctl/driftctl/internal/model"
+	"github.com/driftctl/driftctl/internal/providers/aws"
+)
+
+// CloudProvider fetches live cloud resources.
+type CloudProvider interface {
+	Name() string
+	FetchResources(ctx context.Context, expected []model.Resource, regions []string) ([]model.Resource, error)
+	SupportedTypes() []string
+}
+
+// Registry holds registered cloud providers.
+type Registry struct {
+	providers map[string]CloudProvider
+}
+
+func NewRegistry() *Registry {
+	return &Registry{providers: make(map[string]CloudProvider)}
+}
+
+func (r *Registry) Register(p CloudProvider) {
+	r.providers[p.Name()] = p
+}
+
+func (r *Registry) Get(name string) (CloudProvider, bool) {
+	p, ok := r.providers[name]
+	return p, ok
+}
+
+func DefaultRegistry() *Registry {
+	r := NewRegistry()
+	r.Register(aws.NewProvider())
+	return r
+}

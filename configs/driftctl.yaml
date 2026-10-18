@@ -1,0 +1,19 @@
+database: driftctl.db
+
+api:
+  addr: ":8080"
+  # api_key: "change-me-in-production"
+
+workspaces:
+  - name: prod
+    provider: aws
+    state:
+      backend: local
+      path: testdata/state/sample.tfstate
+    regions:
+      - us-east-1
+    compare:
+      ignore_tags:
+        - driftctl_scan
+    schedule:
+      cron: "0 */6 * * *"
