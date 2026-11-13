@@ -58,7 +58,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("PUT /api/v1/workspaces/{id}/schedules", s.handleUpsertSchedule)
 	s.mux.HandleFunc("DELETE /api/v1/workspaces/{id}/schedules", s.handleDeleteSchedule)
 	s.mux.HandleFunc("GET /", s.handleDashboard)
-	s.mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 }
 
 func (s *Server) authMiddleware(next http.Handler) http.Handler {
@@ -131,7 +131,6 @@ func (s *Server) handleDeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.scheduler.Unregister(id)
-	_ = s.store.DeleteSchedule(r.Context(), id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -148,6 +147,7 @@ func (s *Server) handleTriggerScan(w http.ResponseWriter, r *http.Request) {
 		Provider:      ws.Provider,
 		State:         ws.State,
 		Regions:       ws.Regions,
+		ResourceTypes: ws.ResourceTypes,
 		Compare:       ws.Compare,
 	})
 	if err != nil && report == nil {

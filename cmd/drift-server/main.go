@@ -10,6 +10,7 @@ import (
 
 	"github.com/driftctl/driftctl/internal/api"
 	"github.com/driftctl/driftctl/internal/config"
+	"github.com/driftctl/driftctl/internal/notify"
 	"github.com/driftctl/driftctl/internal/scan"
 	"github.com/driftctl/driftctl/internal/scheduler"
 	"github.com/driftctl/driftctl/internal/store"
@@ -44,6 +45,7 @@ func main() {
 	}
 
 	scanner := scan.NewScanner(st)
+	scanner.Notifiers = notify.FromConfig(cfg.Notifications)
 	sched := scheduler.New(scanner, st)
 	if err := sched.LoadFromStore(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "load schedules: %v\n", err)

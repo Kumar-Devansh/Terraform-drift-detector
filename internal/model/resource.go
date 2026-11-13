@@ -57,16 +57,23 @@ type DriftSummary struct {
 
 // DriftReport is the output of a drift scan.
 type DriftReport struct {
-	ScanID      string         `json:"scan_id"`
-	WorkspaceID string         `json:"workspace_id,omitempty"`
-	Workspace   string         `json:"workspace,omitempty"`
-	StartedAt   time.Time      `json:"started_at"`
-	CompletedAt time.Time      `json:"completed_at"`
-	Status      string         `json:"status"`
-	Summary     DriftSummary   `json:"summary"`
-	Findings    []DriftFinding `json:"findings"`
-	Errors      []string       `json:"errors,omitempty"`
+	ScanID                  string         `json:"scan_id"`
+	WorkspaceID             string         `json:"workspace_id,omitempty"`
+	Workspace               string         `json:"workspace,omitempty"`
+	StartedAt               time.Time      `json:"started_at"`
+	CompletedAt             time.Time      `json:"completed_at"`
+	Status                  string         `json:"status"`
+	EmailNotificationStatus string         `json:"email_notification_status"`
+	Summary                 DriftSummary   `json:"summary"`
+	Findings                []DriftFinding `json:"findings"`
+	Errors                  []string       `json:"errors,omitempty"`
 }
+
+const (
+	EmailNotificationDisabled = "disabled"
+	EmailNotificationSent     = "sent"
+	EmailNotificationFailed   = "failed"
+)
 
 // ScanStatus values.
 const (
@@ -77,13 +84,14 @@ const (
 
 // Workspace represents a configured drift detection target.
 type Workspace struct {
-	ID       string         `json:"id"`
-	Name     string         `json:"name"`
-	Provider string         `json:"provider"`
-	State    StateConfig    `json:"state"`
-	Regions  []string       `json:"regions"`
-	Compare  CompareConfig  `json:"compare"`
-	Schedule *ScheduleConfig `json:"schedule,omitempty"`
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Provider      string          `json:"provider"`
+	State         StateConfig     `json:"state"`
+	Regions       []string        `json:"regions"`
+	ResourceTypes []string        `json:"resource_types,omitempty" yaml:"resource_types,omitempty"`
+	Compare       CompareConfig   `json:"compare"`
+	Schedule      *ScheduleConfig `json:"schedule,omitempty"`
 }
 
 // StateConfig describes where Terraform state is stored.
@@ -98,7 +106,7 @@ type StateConfig struct {
 
 // CompareConfig controls drift comparison behavior.
 type CompareConfig struct {
-	IgnoreTags      []string `json:"ignore_tags" yaml:"ignore_tags"`
+	IgnoreTags       []string `json:"ignore_tags" yaml:"ignore_tags"`
 	IgnoreAttributes []string `json:"ignore_attributes" yaml:"ignore_attributes"`
 }
 
@@ -109,7 +117,7 @@ type ScheduleConfig struct {
 
 // ResourceSelector targets specific resources for cloud fetch.
 type ResourceSelector struct {
-	Type   string
-	Region string
+	Type    string
+	Region  string
 	CloudID string
 }

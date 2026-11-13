@@ -1,9 +1,8 @@
 .PHONY: build test run-server run-scan clean
 
 GO ?= go
-ifeq ($(OS),Windows_NT)
 EXEEXT := .exe
-endif
+
 CLI := bin/driftctl$(EXEEXT)
 SERVER := bin/drift-server$(EXEEXT)
 

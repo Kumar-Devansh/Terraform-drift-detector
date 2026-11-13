@@ -65,6 +65,9 @@ Local file, HTTP(S) URL, or S3 object.
 **☁️ Live cloud comparison**
 AWS: EC2 instances, VPCs, subnets, security groups, S3 buckets.
 
+**🔎 Unmanaged resource discovery**
+Enumerates supported AWS resources in the configured regions and reports cloud-only resources as `extra_in_cloud`.
+
 **🧮 Normalized resource model**
 State and cloud data are mapped to one `Resource` shape before comparison.
 
@@ -73,6 +76,9 @@ State and cloud data are mapped to one `Resource` shape before comparison.
 
 **🚨 Four drift categories**
 Missing in cloud, extra in cloud, attribute changed, tags changed — each with a severity.
+
+**🔔 Drift notifications**
+Optional Slack webhook and SMTP email summaries after a completed scan.
 
 **⏱ On-demand and scheduled scans**
 Trigger via CLI or REST API; schedule per workspace with cron expressions.
@@ -267,14 +273,14 @@ make run-scan
 ./bin/driftctl scan \
   --state /path/to/terraform.tfstate \
   --provider aws \
-  --region us-east-1
+  --region us-east-2
 
 # State stored in S3
 ./bin/driftctl scan \
   --state-bucket my-tf-state \
   --state-key prod/terraform.tfstate \
-  --state-region us-east-1 \
-  --region us-east-1
+  --state-region us-east-2 \
+  --region us-east-2
 ```
 
 ### 4. Start the API server and dashboard
@@ -325,13 +331,33 @@ workspaces:
       backend: local
       path: testdata/state/sample.tfstate
     regions:
-      - us-east-1
+      - us-east-2
     compare:
       ignore_tags:
         - driftctl_scan
     schedule:
       cron: "0 */6 * * *"
 ```
+
+Slack and email notifications can be enabled independently or together:
+
+```yaml
+notifications:
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+  email:
+    enabled: true
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    username: "${SMTP_USERNAME}"
+    password: "${SMTP_PASSWORD}"
+    from: "${EMAIL_FROM}"
+    to:
+      - ops@example.com
+```
+
+For Slack, set `SLACK_WEBHOOK_URL`. For email, set `SMTP_USERNAME`, `SMTP_PASSWORD`, and `EMAIL_FROM` in the environment before starting `drift-server` or running the CLI with this config file. SMTP credentials are used only over STARTTLS; use a server/port that supports STARTTLS (typically port 587). Do not commit real credentials or webhook URLs. Scans with no findings do not send notifications. If a provider fails, the completed scan remains saved and its result is returned normally.
 
 ### Options
 
@@ -340,9 +366,16 @@ workspaces:
 | `database` | SQLite database file | `driftctl.db` |
 | `api.addr` | Server listen address | `:8080` |
 | `api.api_key` | If set, API requests must send it in the `X-API-Key` header | unset (no auth) |
+| `notifications.slack.enabled` | Send a Slack summary when a scan has findings | `false` |
+| `notifications.slack.webhook_url` | Slack incoming webhook URL; supports environment variable expansion | unset |
+| `notifications.email.enabled` | Send an SMTP email when a scan has findings | `false` |
+| `notifications.email.smtp_host` / `smtp_port` | SMTP server and port (STARTTLS supported) | — / `587` |
+| `notifications.email.username` / `password` | SMTP authentication credentials; environment variables are expanded | unset |
+| `notifications.email.from` / `to` | Sender address and recipient address list; environment variables are expanded | — |
 | `workspaces[].name` / `provider` | Workspace identity and cloud provider (`aws`) | — |
 | `workspaces[].state` | State source (see below) | — |
-| `workspaces[].regions` | Regions to scan | derived from state, else `us-east-1` |
+| `workspaces[].regions` | Regions to scan | derived from state, else `us-east-2` |
+| `workspaces[].resource_types` | Resource types to include in this workspace's scan (empty means all provider-supported types) | all provider-supported types |
 | `workspaces[].compare.ignore_tags` | Tag keys to ignore | — |
 | `workspaces[].compare.ignore_attributes` | Attribute keys to ignore | — |
 | `workspaces[].schedule.cron` | Cron expression for scheduled scans | — |
@@ -367,7 +400,7 @@ state:
   backend: s3
   bucket: my-tf-state
   key: prod/terraform.tfstate
-  region: us-east-1     # falls back to us-east-1 if omitted
+  region: us-east-2     # falls back to us-east-2 if omitted
 ```
 </details>
 
@@ -389,7 +422,7 @@ driftctl uses the AWS SDK default credential chain; no credentials are read from
 | --- | --- |
 | Read state from S3 | `s3:GetObject` |
 | EC2 / VPC resources | `ec2:DescribeInstances`, `ec2:DescribeVpcs`, `ec2:DescribeSubnets`, `ec2:DescribeSecurityGroups` |
-| S3 bucket resources | `s3:GetBucketLocation`, `s3:GetBucketTagging`, `s3:GetBucketVersioning` |
+| S3 bucket discovery and details | `s3:ListAllMyBuckets`, `s3:GetBucketLocation`, `s3:GetBucketTagging`, `s3:GetBucketVersioning` |
 
 > [!WARNING]
 > Never commit credentials or a real `api_key`. `.env` and `*.db` files are already in `.gitignore`.
@@ -479,9 +512,10 @@ curl -s -H "X-API-Key: $DRIFTCTL_API_KEY" http://localhost:8080/api/v1/workspace
 
 Open `http://localhost:8080` after starting the server. It is a dependency-free HTML/CSS/JS page that talks to the REST API and shows:
 
+- **Latest scan summary** — resources scanned, findings by severity, total findings, and scan time
 - **Workspaces** — one card per workspace with a **Run Scan** button
-- **Recent Scans** — click a scan to open its report
-- **Drift Report** — summary counts plus a findings table
+- **Recent Scans** — workspace, status, scan time, and finding count; click a scan to open its report
+- **Drift Report** — summary cards plus findings table filters for severity, resource type, and drift type
 
 ---
 
@@ -619,7 +653,7 @@ type CloudProvider interface {
 Stated plainly, so you know what to expect:
 
 - **AWS only.** The provider registry ships with AWS; other providers are an extension point, not an implemented feature.
-- **Lookups are driven by state.** The AWS fetchers query the resource IDs found in the Terraform state. The `extra_in_cloud` category exists in the engine, but the current AWS provider does not enumerate unmanaged resources in your account.
+- **AWS inventory is limited to five supported resource types** (see the table above). EC2 instances, VPCs, subnets, and security groups are enumerated in each configured region; S3 buckets are discovered account-wide and included only when their bucket region is in scan scope.
 - **Five resource types** are supported (see the table above).
 - **Scans via the API are synchronous**: the `POST .../scans` request returns once the scan finishes.
 - **No auth by default.** Set `api.api_key` before exposing the server.
@@ -631,7 +665,7 @@ Stated plainly, so you know what to expect:
 
 Ideas only; none of these are implemented yet.
 
-- [ ] Discover unmanaged resources (true `extra_in_cloud` detection)
+- [x] Discover unmanaged resources (true `extra_in_cloud` detection for supported AWS types)
 - [ ] Additional providers (Azure, GCP) via the provider interface
 - [ ] More AWS resource types
 - [ ] Container image and CI workflow

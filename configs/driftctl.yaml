@@ -4,14 +4,33 @@ api:
   addr: ":8080"
   # api_key: "change-me-in-production"
 
+notifications:
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+  email:
+    enabled: true
+    smtp_host: smtp.gmail.com
+    smtp_port: 587
+    username: "dev.coding.world.aim.01@gmail.com"
+    password: "bmmyfwsjryvonxbh"
+    from: "dev.coding.world.aim.01@gmail.com"
+    to:
+      - devanshup1312@gmail.com
+
 workspaces:
   - name: prod
     provider: aws
     state:
       backend: local
-      path: testdata/state/sample.tfstate
+      path: "D:/Terraform-PBL/terraform.tfstate"
     regions:
-      - us-east-1
+      - us-east-2
+    resource_types:
+      - aws_s3_bucket
+      - aws_instance
+      - aws_vpc
+      - aws_subnet
     compare:
       ignore_tags:
         - driftctl_scan

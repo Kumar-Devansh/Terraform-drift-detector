@@ -11,9 +11,31 @@ import (
 
 // File represents the driftctl.yaml configuration.
 type File struct {
-	Database string            `yaml:"database"`
-	API      APIConfig         `yaml:"api"`
-	Workspaces []model.Workspace `yaml:"workspaces"`
+	Database      string              `yaml:"database"`
+	API           APIConfig           `yaml:"api"`
+	Notifications NotificationsConfig `yaml:"notifications"`
+	Workspaces    []model.Workspace   `yaml:"workspaces"`
+}
+
+// NotificationsConfig configures optional drift notification providers.
+type NotificationsConfig struct {
+	Slack SlackConfig `yaml:"slack"`
+	Email EmailConfig `yaml:"email"`
+}
+
+type EmailConfig struct {
+	Enabled  bool     `yaml:"enabled"`
+	SMTPHost string   `yaml:"smtp_host"`
+	SMTPPort int      `yaml:"smtp_port"`
+	Username string   `yaml:"username"`
+	Password string   `yaml:"password"`
+	From     string   `yaml:"from"`
+	To       []string `yaml:"to"`
+}
+
+type SlackConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	WebhookURL string `yaml:"webhook_url"`
 }
 
 // APIConfig holds server settings.

@@ -18,7 +18,7 @@ func readS3(ctx context.Context, cfg model.StateConfig) ([]byte, error) {
 
 	region := cfg.Region
 	if region == "" {
-		region = "us-east-1"
+		region = "us-east-2"
 	}
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))

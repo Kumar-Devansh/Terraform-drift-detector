@@ -13,57 +13,66 @@ func fetchBuckets(ctx context.Context, client *s3.Client, region string, expecte
 	var resources []model.Resource
 	var errs []error
 
-	for _, e := range expected {
-		bucket := e.CloudID
-		// S3 bucket names don't include arn prefix
-		if len(bucket) > 5 && bucket[:5] == "arn:" {
-			// extract bucket from arn:aws:s3:::bucket-name
-			parts := splitARN(bucket)
-			if len(parts) > 0 {
-				bucket = parts[len(parts)-1]
-			}
-		}
-
-		locOut, err := client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{
-			Bucket: aws.String(bucket),
-		})
+	paginator := s3.NewListBucketsPaginator(client, &s3.ListBucketsInput{})
+	for paginator.HasMorePages() {
+		listed, err := paginator.NextPage(ctx)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("bucket %s: %w", bucket, err))
-			continue
+			return resources, []error{fmt.Errorf("list buckets: %w", err)}
 		}
-
-		bucketRegion := string(locOut.LocationConstraint)
-		if bucketRegion == "" {
-			bucketRegion = "us-east-1"
-		}
-
-		tags := map[string]string{}
-		tagsOut, err := client.GetBucketTagging(ctx, &s3.GetBucketTaggingInput{
-			Bucket: aws.String(bucket),
-		})
-		if err == nil {
-			for _, t := range tagsOut.TagSet {
-				tags[aws.ToString(t.Key)] = aws.ToString(t.Value)
+		for _, b := range listed.Buckets {
+			bucket := aws.ToString(b.Name)
+			// S3 bucket names don't include arn prefix
+			if len(bucket) > 5 && bucket[:5] == "arn:" {
+				// extract bucket from arn:aws:s3:::bucket-name
+				parts := splitARN(bucket)
+				if len(parts) > 0 {
+					bucket = parts[len(parts)-1]
+				}
 			}
-		}
 
-		attrs := map[string]any{
-			"acl":           nil,
-			"force_destroy": nil,
-			"versioning":    nil,
-		}
-
-		verOut, err := client.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{
-			Bucket: aws.String(bucket),
-		})
-		if err == nil && verOut.Status != "" {
-			attrs["versioning"] = map[string]any{
-				"enabled":    verOut.Status == "Enabled",
-				"mfa_delete": verOut.MFADelete == "Enabled",
+			locOut, err := client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{
+				Bucket: aws.String(bucket),
+			})
+			if err != nil {
+				errs = append(errs, fmt.Errorf("bucket %s: %w", bucket, err))
+				continue
 			}
-		}
 
-		resources = append(resources, baseResource("aws_s3_bucket", bucket, bucket, bucketRegion, attrs, tags))
+			bucketRegion := string(locOut.LocationConstraint)
+			if bucketRegion == "" {
+				bucketRegion = "us-east-1"
+			}
+			if bucketRegion == "EU" {
+				bucketRegion = "eu-west-1"
+			}
+			if bucketRegion != region {
+				continue
+			}
+
+			tags := map[string]string{}
+			tagsOut, err := client.GetBucketTagging(ctx, &s3.GetBucketTaggingInput{
+				Bucket: aws.String(bucket),
+			})
+			if err == nil {
+				for _, t := range tagsOut.TagSet {
+					tags[aws.ToString(t.Key)] = aws.ToString(t.Value)
+				}
+			}
+
+			attrs := map[string]any{}
+
+			verOut, err := client.GetBucketVersioning(ctx, &s3.GetBucketVersioningInput{
+				Bucket: aws.String(bucket),
+			})
+			if err == nil {
+				attrs["versioning"] = map[string]any{
+					"enabled":    verOut.Status == "Enabled",
+					"mfa_delete": verOut.MFADelete == "Enabled",
+				}
+			}
+
+			resources = append(resources, baseResource("aws_s3_bucket", bucket, bucket, bucketRegion, attrs, tags))
+		}
 	}
 	return resources, errs
 }
