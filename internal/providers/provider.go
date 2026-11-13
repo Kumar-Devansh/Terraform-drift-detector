@@ -10,7 +10,7 @@ import (
 // CloudProvider fetches live cloud resources.
 type CloudProvider interface {
 	Name() string
-	FetchResources(ctx context.Context, expected []model.Resource, regions []string) ([]model.Resource, error)
+	FetchResources(ctx context.Context, expected []model.Resource, regions, resourceTypes []string) ([]model.Resource, error)
 	SupportedTypes() []string
 }
 

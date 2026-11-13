@@ -198,7 +198,11 @@ func normalizeAttributes(resType string, attrs map[string]any) map[string]any {
 
 	for _, key := range compareKeys {
 		if v, ok := attrs[key]; ok {
-			out[key] = normalizeValue(v)
+			if resType == "aws_s3_bucket" && key == "versioning" {
+				out[key] = normalizeS3Versioning(v)
+			} else {
+				out[key] = normalizeValue(v)
+			}
 		}
 	}
 	return out
@@ -209,7 +213,9 @@ func compareKeysForType(resType string) []string {
 	case "aws_instance":
 		return []string{"instance_type", "ami", "vpc_security_group_ids", "subnet_id", "monitoring"}
 	case "aws_s3_bucket":
-		return []string{"acl", "force_destroy", "versioning"}
+		// force_destroy controls Terraform's deletion behavior; it is not an
+		// AWS bucket property and cannot be checked for cloud drift.
+		return []string{"acl", "versioning"}
 	case "aws_security_group":
 		return []string{"description", "vpc_id", "ingress", "egress"}
 	case "aws_vpc":
@@ -253,4 +259,20 @@ func normalizeValue(v any) any {
 	default:
 		return v
 	}
+}
+
+func normalizeS3Versioning(v any) any {
+	// The legacy aws_s3_bucket state stores versioning as a single nested
+	// block, while AWS reports status and MFA delete independently.
+	blocks, ok := v.([]any)
+	if !ok || len(blocks) == 0 {
+		return v
+	}
+	block, ok := blocks[0].(map[string]any)
+	if !ok {
+		return v
+	}
+	status, _ := block["enabled"].(bool)
+	mfaDelete, _ := block["mfa_delete"].(bool)
+	return map[string]any{"enabled": status, "mfa_delete": mfaDelete}
 }

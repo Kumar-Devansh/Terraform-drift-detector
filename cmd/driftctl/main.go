@@ -10,6 +10,7 @@ import (
 
 	"github.com/driftctl/driftctl/internal/config"
 	"github.com/driftctl/driftctl/internal/model"
+	"github.com/driftctl/driftctl/internal/notify"
 	"github.com/driftctl/driftctl/internal/output"
 	"github.com/driftctl/driftctl/internal/scan"
 	"github.com/driftctl/driftctl/internal/store"
@@ -88,6 +89,9 @@ func newScanCmd(cfgFile *string) *cobra.Command {
 			}
 
 			scanner := scan.NewScanner(st)
+			if cfg != nil {
+				scanner.Notifiers = notify.FromConfig(cfg.Notifications)
+			}
 			opts := scan.Options{Compare: model.CompareConfig{}, Regions: regions}
 
 			if workspace != "" {
@@ -100,6 +104,7 @@ func newScanCmd(cfgFile *string) *cobra.Command {
 				opts.Provider = ws.Provider
 				opts.State = ws.State
 				opts.Regions = ws.Regions
+				opts.ResourceTypes = ws.ResourceTypes
 				opts.Compare = ws.Compare
 			} else {
 				if statePath == "" && stateBucket == "" {

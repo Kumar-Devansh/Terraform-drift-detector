@@ -61,3 +61,65 @@ func TestEngineCompareMissingInCloud(t *testing.T) {
 		t.Fatalf("expected critical severity, got %s", findings[0].Severity)
 	}
 }
+
+func TestEngineDoesNotReportManagedResourceAsExtra(t *testing.T) {
+	resource := model.Resource{ID: "aws/aws_instance/i-managed", Type: "aws_instance", CloudID: "i-managed"}
+	findings := NewEngine(model.CompareConfig{}).Compare([]model.Resource{resource}, []model.Resource{resource})
+	for _, finding := range findings {
+		if finding.Kind == model.DriftExtraInCloud {
+			t.Fatalf("managed resource was reported as extra: %+v", finding)
+		}
+	}
+}
+
+func TestEngineReportsMultipleExtraResources(t *testing.T) {
+	expected := []model.Resource{{ID: "aws/aws_instance/i-managed", Type: "aws_instance", CloudID: "i-managed"}}
+	actual := append([]model.Resource{}, expected...)
+	actual = append(actual,
+		model.Resource{ID: "aws/aws_instance/i-extra-1", Type: "aws_instance", CloudID: "i-extra-1"},
+		model.Resource{ID: "aws/aws_instance/i-extra-2", Type: "aws_instance", CloudID: "i-extra-2"},
+	)
+	findings := NewEngine(model.CompareConfig{}).Compare(expected, actual)
+	if got := BuildSummary(len(expected), findings).ExtraInCloud; got != 2 {
+		t.Fatalf("expected 2 extra resources, got %d (findings: %+v)", got, findings)
+	}
+}
+
+func TestS3VersioningMatchesAWSRepresentation(t *testing.T) {
+	expected := model.Resource{ID: "aws/aws_s3_bucket/example", Type: "aws_s3_bucket", Attributes: map[string]any{
+		"versioning": map[string]any{"enabled": true, "mfa_delete": false},
+	}}
+	actual := model.Resource{ID: expected.ID, Type: expected.Type, Attributes: map[string]any{
+		"versioning": map[string]any{"enabled": true, "mfa_delete": false},
+	}}
+	if findings := NewEngine(model.CompareConfig{}).Compare([]model.Resource{expected}, []model.Resource{actual}); len(findings) != 0 {
+		t.Fatalf("matching S3 versioning produced findings: %+v", findings)
+	}
+}
+
+func TestS3VersioningChangeIsReported(t *testing.T) {
+	expected := model.Resource{ID: "aws/aws_s3_bucket/example", Type: "aws_s3_bucket", Attributes: map[string]any{
+		"versioning": map[string]any{"enabled": true, "mfa_delete": false},
+	}}
+	actual := model.Resource{ID: expected.ID, Type: expected.Type, Attributes: map[string]any{
+		"versioning": map[string]any{"enabled": false, "mfa_delete": false},
+	}}
+	findings := NewEngine(model.CompareConfig{}).Compare([]model.Resource{expected}, []model.Resource{actual})
+	if len(findings) != 1 || findings[0].Field != "versioning" || findings[0].Kind != model.DriftAttributeChange {
+		t.Fatalf("expected one versioning drift finding, got %+v", findings)
+	}
+}
+
+func TestS3UnavailableAndTerraformOnlyAttributesAreIgnored(t *testing.T) {
+	expected := model.Resource{ID: "aws/aws_s3_bucket/example", Type: "aws_s3_bucket", Attributes: map[string]any{
+		"force_destroy": true,
+		"versioning":    map[string]any{"enabled": true},
+		"acl":           "private",
+	}}
+	actual := model.Resource{ID: expected.ID, Type: expected.Type, Attributes: map[string]any{
+		"versioning": nil,
+	}}
+	if findings := NewEngine(model.CompareConfig{}).Compare([]model.Resource{expected}, []model.Resource{actual}); len(findings) != 0 {
+		t.Fatalf("unavailable or Terraform-only S3 attributes produced findings: %+v", findings)
+	}
+}

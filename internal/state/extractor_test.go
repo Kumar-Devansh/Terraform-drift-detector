@@ -33,3 +33,17 @@ func TestExtractorExtract(t *testing.T) {
 		t.Fatalf("unexpected resource types: %v", byType)
 	}
 }
+
+func TestNormalizeS3Versioning(t *testing.T) {
+	got := normalizeAttributes("aws_s3_bucket", map[string]any{
+		"force_destroy": true,
+		"versioning":    []any{map[string]any{"enabled": true, "mfa_delete": false}},
+	})
+	if _, ok := got["force_destroy"]; ok {
+		t.Fatal("force_destroy should not be compared as cloud drift")
+	}
+	versioning, ok := got["versioning"].(map[string]any)
+	if !ok || versioning["enabled"] != true || versioning["mfa_delete"] != false {
+		t.Fatalf("unexpected normalized versioning: %#v", got["versioning"])
+	}
+}

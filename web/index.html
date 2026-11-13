@@ -7,29 +7,123 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header>
-    <h1>Driftctl</h1>
-    <p>Terraform state vs live cloud infrastructure</p>
+  <header class="app-header">
+    <a class="brand" href="#overview" aria-label="Driftctl home">
+      <span class="brand-mark" aria-hidden="true">D</span>
+      <span class="brand-copy"><strong>driftctl</strong><small>INFRASTRUCTURE MONITOR</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="nav-link active" href="#overview">Overview</a>
+      <a class="nav-link" href="#workspaces-panel">Workspaces</a>
+      <a class="nav-link" href="#history-panel">Scan history</a>
+    </nav>
+    <div class="header-context"><span class="readonly-dot" aria-hidden="true"></span><span>Read-only monitoring</span></div>
   </header>
 
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  <dialog id="workspace-delete-modal" class="confirm-modal" aria-labelledby="workspace-delete-title" aria-describedby="workspace-delete-warning">
+    <form method="dialog" class="confirm-modal-card" id="workspace-delete-form">
+      <p class="eyebrow">WORKSPACE SETTINGS</p>
+      <h2 id="workspace-delete-title">Delete workspace?</h2>
+      <p class="confirm-modal-workspace" id="workspace-delete-name"></p>
+      <p class="confirm-modal-warning" id="workspace-delete-warning">Deleting this workspace will remove its configuration, schedule, and associated scan history. This does not change any AWS resources.</p>
+      <div class="confirm-modal-actions">
+        <button class="secondary-button" type="button" id="workspace-delete-cancel">Cancel</button>
+        <button class="danger-button" type="submit" id="workspace-delete-confirm">Delete Workspace</button>
+      </div>
+    </form>
+  </dialog>
+
   <main>
-    <section class="panel">
-      <h2>Workspaces</h2>
-      <div id="workspaces" class="card-list">Loading…</div>
+    <section class="page-intro" id="overview" aria-labelledby="overview-title">
+      <div>
+        <p class="eyebrow">CLOUD INFRASTRUCTURE / OVERVIEW</p>
+        <h1 id="overview-title">Infrastructure posture</h1>
+        <p class="intro-copy">A clear view of Terraform state drift across your monitored workspaces.</p>
+      </div>
+      <div class="intro-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     </section>
 
-    <section class="panel">
-      <h2>Recent Scans</h2>
-      <div id="scans" class="table-wrap">Loading…</div>
+    <section class="summary-section" aria-labelledby="summary-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">AT A GLANCE</p><h2 id="summary-title">Latest scan</h2></div>
+        <span class="section-note">Summary updates with the most recent scan</span>
+      </div>
+      <div id="dashboard-summary" class="summary-grid dashboard-summary" aria-live="polite">
+        <div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading dashboard summary…</div>
+      </div>
     </section>
+
+    <div id="scan-progress" class="scan-progress" role="status" aria-live="polite" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="scan-progress-message">Scanning AWS resources…</span>
+    </div>
+
+    <div class="overview-grid">
+      <section class="panel workspace-panel" id="workspaces-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">SCAN TARGETS</p><h2>Workspaces</h2></div>
+          <span class="section-count" aria-label="Configured workspaces">AWS</span>
+        </div>
+        <div id="workspaces" class="card-list">
+          <div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading workspaces…</div>
+        </div>
+      </section>
+
+      <section class="panel history-panel" id="history-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">ACTIVITY</p><h2>Recent scans</h2></div>
+          <span class="section-note">Latest 20 runs</span>
+        </div>
+        <div id="scans" class="table-wrap">
+          <div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading scan history…</div>
+        </div>
+        <div id="scan-history-controls" class="history-controls"></div>
+      </section>
+    </div>
 
     <section class="panel" id="report-panel" hidden>
-      <h2>Drift Report <span id="report-scan-id"></span></h2>
+      <div class="report-heading">
+        <div>
+          <p class="eyebrow">SCAN REPORT</p>
+          <h2>Drift findings</h2>
+        </div>
+        <span id="report-scan-id" class="scan-id"></span>
+      </div>
       <div id="summary" class="summary-grid"></div>
+      <div class="filters" aria-label="Filter drift findings">
+        <label>Severity
+          <select id="filter-severity"><option value="">All severities</option></select>
+        </label>
+        <label>Resource type
+          <select id="filter-resource-type"><option value="">All resource types</option></select>
+        </label>
+        <label>Drift type
+          <select id="filter-kind">
+            <option value="">All drift types</option>
+            <option value="missing_in_cloud">missing_in_cloud</option>
+            <option value="extra_in_cloud">extra_in_cloud</option>
+            <option value="attribute_changed">attribute_changed</option>
+            <option value="tags_changed">tags_changed</option>
+          </select>
+        </label>
+      </div>
+      <div class="findings-toolbar">
+        <label class="toggle-control" for="hide-common-resources">
+          <input id="hide-common-resources" type="checkbox">
+          <span class="toggle-track" aria-hidden="true"><span></span></span>
+          <span class="toggle-copy">
+            <strong>Hide Common Infrastructure Resources</strong>
+            <small>Hide default or unnamed VPCs and subnets, default security groups, and old EKS infrastructure.</small>
+          </span>
+        </label>
+        <p id="findings-count" class="findings-count" aria-live="polite"></p>
+      </div>
       <div id="findings" class="table-wrap"></div>
     </section>
   </main>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20261110-1"></script>
 </body>
 </html>

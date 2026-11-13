@@ -89,8 +89,13 @@ func (e *Engine) diffAttributes(exp, act model.Resource) []model.DriftFinding {
 		if e.IgnoreAttributes[key] {
 			continue
 		}
+		// Compare only values the cloud provider actually retrieved. This avoids
+		// interpreting unsupported or unavailable attributes as drift.
+		av, available := act.Attributes[key]
+		if !available || av == nil {
+			continue
+		}
 		ev := exp.Attributes[key]
-		av := act.Attributes[key]
 		if valuesEqual(ev, av) {
 			continue
 		}
